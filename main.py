@@ -1,8 +1,10 @@
 import sys
 import json
 import requests
+import datetime
 
 from os import getenv, path
+from bs4 import BeautifulSoup
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel
 from PyQt5.QtGui import QIcon, QPixmap, QFont
 from PyQt5.QtCore import pyqtSlot
@@ -57,21 +59,27 @@ def imageByTeamCode(teamCode):
 
 def window():
 
-   url = "https://couchdb.e-hsiang.com/cpbl/_find"
-   username = getenv('COUCH_USERNAME')
-   password = getenv('COUCH_PASSWORD')
-   data = {"fields":["GameSno","VisitingTeamCode","HomeTeamCode","VisitingTotalScore","HomeTotalScore"],"selector":{"GameDate":{"$eq":"2022-08-21T00:00:00"}}}
-   headers = {'Content-type': 'application/json', 'Accept': 'application/json'}
+   today = datetime.date.today()
 
-   r = requests.post(url, auth=(username, password), json=data, headers=headers)
+   url = "https://www.cpbl.com.tw"
+   response = requests.get(url, verify=False)
+   soup = BeautifulSoup(response.text, "html.parser")
+   requestVerificationToken = soup.find('input', attrs={'name': '__RequestVerificationToken'}).get('value')
+   print(requestVerificationToken)
+
+   url = "https://www.cpbl.com.tw/home/getdetaillist"
+   data = "__RequestVerificationToken={}&GameDate={}".format(requestVerificationToken, '2022%2F08%2F21') # today.strftime('%Y%2F%m%2F%d')
+   headers = {'Content-type': 'application/x-www-form-urlencoded; charset=UTF-8', 'Accept': 'application/json'}
+
+   r = requests.post(url, data=data, headers=headers, verify=False)
    print(r.json())
 
-   res = r.json()
+   docs = json.loads(r.json()['GameADetailJson'])
 
    app = QApplication(sys.argv)
    widget = QWidget()
 
-   for index, doc in enumerate(res['docs']):
+   for index, doc in enumerate(docs):
       renderDoc(widget, doc, 50 + index * 140)
 
    widget.setGeometry(50, 50, 480, 320)
