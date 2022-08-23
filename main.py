@@ -91,7 +91,7 @@ def window():
    widget = QWidget()
 
    for index, doc in enumerate(docs):
-      renderDoc(widget, doc, 50 + index * 140)
+      renderDoc(widget, doc, 25 + index * 140)
 
    widget.setGeometry(50, 50, 480, 320)
    widget.setWindowTitle("PyQt5 Example")
