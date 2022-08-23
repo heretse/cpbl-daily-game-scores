@@ -5,54 +5,46 @@ import datetime
 
 from os import getenv, path
 from bs4 import BeautifulSoup
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel
-from PyQt5.QtGui import QIcon, QPixmap, QFont
-from PyQt5.QtCore import pyqtSlot
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QHBoxLayout, QGridLayout, QPushButton
+from PyQt5.QtGui import QPixmap, QFont
+from PyQt5.QtCore import Qt, pyqtSlot
 
+def renderDoc(layout, doc, index):
 
-# wget --no-check-certificate -O logo_monkeys.png https://www.cpbl.com.tw/files/atts/0L015574823122453305/logo_monkeys.png
-# wget --no-check-certificate -O logo_lions.png https://www.cpbl.com.tw/files/atts/0L021496162893869773/logo_lions.png
-# wget --no-check-certificate -O logo_brothers.png https://www.cpbl.com.tw//files/atts/0L021497108709222204/logo_brothers.png
-# wget --no-check-certificate -O logo_dragon.png https://www.cpbl.com.tw/files/atts/0L021497845061333235/logo_dragon.png
-# wget --no-check-certificate -O logo_fubon.png https://www.cpbl.com.tw//files/atts/0L021495969510091777/logo_fubon.png
-
-def renderDoc(widget, doc, pos_y):
+   horLayout = QHBoxLayout()
    
-   textLabel = QLabel(widget)
-   textLabel.move(50, pos_y)
+   textLabel = QLabel()
+   textLabel.setAlignment(Qt.AlignCenter)
    pixmap = QPixmap(imageByTeamCode(doc['VisitingTeamCode']))
    textLabel.setPixmap(pixmap)
+   horLayout.addWidget(textLabel)
+
+   horLayout.addStretch(1)
 
    textVisitingTotalScore = '-'
    if doc['VisitingTotalScore'] != None:
       textVisitingTotalScore = str(doc['VisitingTotalScore'])
 
-   textLabel = QLabel(widget)
-   textLabel.setText(textVisitingTotalScore)
-   textLabel.setFont(QFont('Heiti TC', 60))
-   textLabel.setStyleSheet("color:#333333")
-   textLabel.move(190, pos_y + 10)
-
-   textLabel = QLabel(widget)
-   textLabel.setText('：')
-   textLabel.setFont(QFont('Heiti TC', 60))
-   textLabel.setStyleSheet("color:#333333")
-   textLabel.move(210, pos_y)
-
    textHomeTotalScore = '-'
    if doc['HomeTotalScore'] != None:
       textHomeTotalScore = str(doc['HomeTotalScore'])
 
-   textLabel = QLabel(widget)
-   textLabel.setText(textHomeTotalScore)
+   textLabel = QLabel()
+   textLabel.setAlignment(Qt.AlignCenter)
+   textLabel.setText("{}：{}".format(textVisitingTotalScore, textHomeTotalScore))
    textLabel.setFont(QFont('Heiti TC', 60))
    textLabel.setStyleSheet("color:#333333")
-   textLabel.move(270, pos_y + 10)
+   horLayout.addWidget(textLabel)
 
-   textLabel = QLabel(widget)
-   textLabel.move(350, pos_y)
+   horLayout.addStretch(1)
+
+   textLabel = QLabel()
+   textLabel.setAlignment(Qt.AlignCenter)
    pixmap = QPixmap(imageByTeamCode(doc['HomeTeamCode']))
    textLabel.setPixmap(pixmap)
+   horLayout.addWidget(textLabel)
+
+   layout.addLayout(horLayout, index, 0)
 
 def imageByTeamCode(teamCode):
    if teamCode == 'ACN011':
@@ -90,11 +82,23 @@ def window():
    app = QApplication(sys.argv)
    widget = QWidget()
 
-   for index, doc in enumerate(docs):
-      renderDoc(widget, doc, 25 + index * 140)
+   layout = QGridLayout(widget)
 
-   widget.setGeometry(50, 50, 480, 320)
-   widget.setWindowTitle("PyQt5 Example")
+   for index, doc in enumerate(docs):
+      renderDoc(layout, doc, index) # 25 + index * 140
+
+   button = QPushButton("Close") 
+   button.setToolTip('This is a QPushButton widget. Clicking it will close the program!') 
+   button.clicked.connect(app.quit)
+
+   horLayout = QHBoxLayout()
+   horLayout.addStretch(1)
+   horLayout.addWidget(button)
+   horLayout.addStretch(1)
+   layout.addLayout(horLayout, 2, 0)
+
+   widget.setGeometry(0, 0, 450, 320)
+   widget.setWindowTitle("CPBL Game Info.")
    widget.show()
 
    sys.exit(app.exec_())
