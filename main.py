@@ -97,7 +97,7 @@ def window():
    horLayout.addStretch(1)
    layout.addLayout(horLayout, 2, 0)
 
-   widget.setGeometry(0, 0, 450, 320)
+   widget.setGeometry(0, 0, 300, 480)
    widget.setWindowTitle("CPBL Game Info.")
    widget.show()
 
