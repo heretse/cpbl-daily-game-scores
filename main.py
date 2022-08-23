@@ -23,20 +23,31 @@ def renderDoc(widget, doc, pos_y):
    pixmap = QPixmap(imageByTeamCode(doc['VisitingTeamCode']))
    textLabel.setPixmap(pixmap)
 
+   textVisitingTotalScore = '-'
+   if doc['VisitingTotalScore'] != None:
+      textVisitingTotalScore = str(doc['VisitingTotalScore'])
+
    textLabel = QLabel(widget)
-   textLabel.setText(str(doc['VisitingTotalScore']))
-   textLabel.setFont(QFont('Arial', 60))
-   textLabel.move(185, pos_y + 10)
+   textLabel.setText(textVisitingTotalScore)
+   textLabel.setFont(QFont('Heiti TC', 60))
+   textLabel.setStyleSheet("color:#333333")
+   textLabel.move(190, pos_y + 10)
 
    textLabel = QLabel(widget)
    textLabel.setText('：')
-   textLabel.setFont(QFont('Arial', 60))
-   textLabel.move(205, pos_y)
+   textLabel.setFont(QFont('Heiti TC', 60))
+   textLabel.setStyleSheet("color:#333333")
+   textLabel.move(210, pos_y)
+
+   textHomeTotalScore = '-'
+   if doc['HomeTotalScore'] != None:
+      textHomeTotalScore = str(doc['HomeTotalScore'])
 
    textLabel = QLabel(widget)
-   textLabel.setText(str(doc['HomeTotalScore']))
-   textLabel.setFont(QFont('Arial', 60))
-   textLabel.move(265, pos_y + 10)
+   textLabel.setText(textHomeTotalScore)
+   textLabel.setFont(QFont('Heiti TC', 60))
+   textLabel.setStyleSheet("color:#333333")
+   textLabel.move(270, pos_y + 10)
 
    textLabel = QLabel(widget)
    textLabel.move(350, pos_y)
@@ -68,7 +79,7 @@ def window():
    print(requestVerificationToken)
 
    url = "https://www.cpbl.com.tw/home/getdetaillist"
-   data = "__RequestVerificationToken={}&GameDate={}".format(requestVerificationToken, '2022%2F08%2F21') # today.strftime('%Y%2F%m%2F%d')
+   data = "__RequestVerificationToken={}&GameDate={}".format(requestVerificationToken, today.strftime('%Y/%m/%d')) 
    headers = {'Content-type': 'application/x-www-form-urlencoded; charset=UTF-8', 'Accept': 'application/json'}
 
    r = requests.post(url, data=data, headers=headers, verify=False)
