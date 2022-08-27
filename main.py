@@ -124,7 +124,7 @@ class Window(QMainWindow):
          self.gridLayout.addLayout(horLayout, index, 0)
       
       reloadBtn = QPushButton("Start")
-      closeBtn.setToolTip('Clicking it will start to fetch data!') 
+      reloadBtn.setToolTip('Clicking it will start to fetch data!') 
       reloadBtn.clicked.connect(self.runTask)
 
       closeBtn = QPushButton("Close") 
