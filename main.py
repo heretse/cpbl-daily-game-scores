@@ -1,5 +1,7 @@
 import sys
 import json
+from time import sleep
+from typing import Any
 import requests
 import datetime
 
@@ -16,44 +18,10 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 from PyQt5.QtGui import QPixmap, QFont
-from PyQt5.QtCore import QRunnable, Qt, QThreadPool, pyqtSignal
+from PyQt5.QtCore import QObject, QRunnable, Qt, QThread, pyqtSignal
 
-def renderDoc(layout, doc, index):
-
-   horLayout = QHBoxLayout()
-   
-   textLabel = QLabel()
-   textLabel.setAlignment(Qt.AlignCenter)
-   pixmap = QPixmap(imageByTeamCode(doc['VisitingTeamCode']))
-   textLabel.setPixmap(pixmap)
-   horLayout.addWidget(textLabel)
-
-   horLayout.addStretch(1)
-
-   textVisitingTotalScore = '-'
-   if doc['VisitingTotalScore'] != None:
-      textVisitingTotalScore = str(doc['VisitingTotalScore'])
-
-   textHomeTotalScore = '-'
-   if doc['HomeTotalScore'] != None:
-      textHomeTotalScore = str(doc['HomeTotalScore'])
-
-   textLabel = QLabel()
-   textLabel.setAlignment(Qt.AlignCenter)
-   textLabel.setText("{}：{}".format(textVisitingTotalScore, textHomeTotalScore))
-   textLabel.setFont(QFont('Heiti TC', 60))
-   textLabel.setStyleSheet("color:#333333")
-   horLayout.addWidget(textLabel)
-
-   horLayout.addStretch(1)
-
-   textLabel = QLabel()
-   textLabel.setAlignment(Qt.AlignCenter)
-   pixmap = QPixmap(imageByTeamCode(doc['HomeTeamCode']))
-   textLabel.setPixmap(pixmap)
-   horLayout.addWidget(textLabel)
-
-   layout.addLayout(horLayout, index, 0)
+requestVerificationToken = None
+my_labels = []
 
 def imageByTeamCode(teamCode):
    if teamCode == 'ACN011':
@@ -69,23 +37,42 @@ def imageByTeamCode(teamCode):
    else:
       return ''
 
+class Worker(QObject):
+   finished = pyqtSignal()
+   progress = pyqtSignal(list)
+
+   def run(self):
+      # """Long-running task."""
+      while True:
+         try:
+            docs = fetchGameDetail()
+            self.progress.emit(docs)
+            sleep(30)
+         except Exception as err:
+            print(err)
+            break
+      self.finished.emit()
+
 def fetchGameDetail():
    today = datetime.date.today()
 
-   url = "https://www.cpbl.com.tw"
-   response = requests.get(url, verify=False)
-   soup = BeautifulSoup(response.text, "html.parser")
-   requestVerificationToken = soup.find('input', attrs={'name': '__RequestVerificationToken'}).get('value')
-   print(requestVerificationToken)
+   global requestVerificationToken
+   if requestVerificationToken == None:
+      url = "https://www.cpbl.com.tw"
+      response = requests.get(url, verify=False)
+      soup = BeautifulSoup(response.text, "html.parser")
+      
+      requestVerificationToken = soup.find('input', attrs={'name': '__RequestVerificationToken'}).get('value')
+      print(requestVerificationToken)
 
    url = "https://www.cpbl.com.tw/home/getdetaillist"
    data = "__RequestVerificationToken={}&GameDate={}".format(requestVerificationToken, today.strftime('%Y/%m/%d')) 
    headers = {'Content-type': 'application/x-www-form-urlencoded; charset=UTF-8', 'Accept': 'application/json'}
 
    r = requests.post(url, data=data, headers=headers, verify=False)
-   print(r.json())
+   # print(r.json())
 
-   return r.json()
+   return json.loads(r.json()['GameADetailJson'])
 
 class Window(QMainWindow):
    def __init__(self, parent=None):
@@ -101,22 +88,98 @@ class Window(QMainWindow):
   
       self.gridLayout = QGridLayout(self.centralWidget)
 
-      gameDetail = fetchGameDetail()
-      docs = json.loads(gameDetail['GameADetailJson'])
-      for index, doc in enumerate(docs):
-         renderDoc(self.gridLayout, doc, index)
+      for index in range(0, 2):
+         horLayout = QHBoxLayout()
+
+         visitingTeamLbl = QLabel()
+         visitingTeamLbl.setAlignment(Qt.AlignCenter)
+         visitingTeamLbl.resize(38, 38)
+         horLayout.addWidget(visitingTeamLbl)
+
+         horLayout.addStretch(1)
+
+         totalScoreLbl = QLabel()
+         totalScoreLbl.setAlignment(Qt.AlignCenter)
+         totalScoreLbl.setText("-：-")
+         totalScoreLbl.setFont(QFont('Heiti TC', 60))
+         totalScoreLbl.setStyleSheet("color:#333333")
+         horLayout.addWidget(totalScoreLbl)
+
+         horLayout.addStretch(1)
+
+         homeTeamLbl = QLabel()
+         homeTeamLbl.setAlignment(Qt.AlignCenter)
+         homeTeamLbl.resize(38, 38)
+         horLayout.addWidget(homeTeamLbl)
+
+         if index == 0:
+            self.visitingTeamLbl_0 = visitingTeamLbl
+            self.totalScoreLbl_0   = totalScoreLbl
+            self.homeTeamLbl_0     = homeTeamLbl
+         elif index == 1:
+            self.visitingTeamLbl_1 = visitingTeamLbl
+            self.totalScoreLbl_1   = totalScoreLbl
+            self.homeTeamLbl_1     = homeTeamLbl
+
+         self.gridLayout.addLayout(horLayout, index, 0)
       
-      button = QPushButton("Close") 
-      button.setToolTip('This is a QPushButton widget. Clicking it will close the program!') 
-      button.clicked.connect(app.quit)
+      reloadBtn = QPushButton("Start")
+      closeBtn.setToolTip('Clicking it will start to fetch data!') 
+      reloadBtn.clicked.connect(self.runTask)
+
+      closeBtn = QPushButton("Close") 
+      closeBtn.setToolTip('Clicking it will close the program!') 
+      closeBtn.clicked.connect(app.quit)
 
       horLayout = QHBoxLayout()
       horLayout.addStretch(1)
-      horLayout.addWidget(button)
+      horLayout.addWidget(reloadBtn)
+      horLayout.addStretch(1)
+      horLayout.addWidget(closeBtn)
       horLayout.addStretch(1)
       self.gridLayout.addLayout(horLayout, 2, 0)
 
       self.centralWidget.setLayout(self.gridLayout)
+
+   def refreshUi(self, doc, index):
+      pixmap_0 = QPixmap(imageByTeamCode(doc['VisitingTeamCode']))
+      textVisitingTotalScore = '-'
+      if doc['VisitingTotalScore'] != None:
+            textVisitingTotalScore = str(doc['VisitingTotalScore'])
+      textHomeTotalScore = '-'
+      if doc['HomeTotalScore'] != None:
+         textHomeTotalScore = str(doc['HomeTotalScore'])
+      pixmap_1 = QPixmap(imageByTeamCode(doc['HomeTeamCode']))
+
+      if index == 0:
+         self.visitingTeamLbl_0.setPixmap(pixmap_0)
+         self.totalScoreLbl_0.setText("{}：{}".format(textVisitingTotalScore, textHomeTotalScore))
+         self.homeTeamLbl_0.setPixmap(pixmap_1)
+      elif index == 1:
+         self.visitingTeamLbl_1.setPixmap(pixmap_0)
+         self.totalScoreLbl_1.setText("{}：{}".format(textVisitingTotalScore, textHomeTotalScore))
+         self.homeTeamLbl_1.setPixmap(pixmap_1)
+   
+   def runTask(self):
+      self.thread = QThread()
+      self.worker = Worker()
+      self.worker.moveToThread(self.thread)
+
+      self.thread.started.connect(self.worker.run)
+      self.worker.finished.connect(self.thread.quit)
+      self.worker.finished.connect(self.worker.deleteLater)
+      self.thread.finished.connect(self.thread.deleteLater)
+      self.worker.progress.connect(self.updateUi)
+
+      self.thread.start()
+
+      # self.thread.finished.connect(
+      #    lambda: 
+      # )
+   
+   def updateUi(self, docs):
+      for index, doc in enumerate(docs):
+         self.refreshUi(doc, index)
 
 if __name__ == '__main__':
    app = QApplication(sys.argv)
