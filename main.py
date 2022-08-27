@@ -5,9 +5,18 @@ import datetime
 
 from os import getenv, path
 from bs4 import BeautifulSoup
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QHBoxLayout, QGridLayout, QPushButton
+from PyQt5.QtWidgets import (
+    QApplication,
+    QLabel,
+    QGridLayout,
+    QHBoxLayout,
+    QMainWindow,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 from PyQt5.QtGui import QPixmap, QFont
-from PyQt5.QtCore import Qt, pyqtSlot
+from PyQt5.QtCore import QRunnable, Qt, QThreadPool, pyqtSignal
 
 def renderDoc(layout, doc, index):
 
@@ -60,8 +69,7 @@ def imageByTeamCode(teamCode):
    else:
       return ''
 
-def window():
-
+def fetchGameDetail():
    today = datetime.date.today()
 
    url = "https://www.cpbl.com.tw"
@@ -77,31 +85,41 @@ def window():
    r = requests.post(url, data=data, headers=headers, verify=False)
    print(r.json())
 
-   docs = json.loads(r.json()['GameADetailJson'])
+   return r.json()
 
-   app = QApplication(sys.argv)
-   widget = QWidget()
+class Window(QMainWindow):
+   def __init__(self, parent=None):
+      super().__init__(parent)
+      self.setupUi()
 
-   layout = QGridLayout(widget)
+   def setupUi(self):
+      self.setWindowTitle("CPBL Game Info.")
+      self.setGeometry(0, 0, 480, 280)
 
-   for index, doc in enumerate(docs):
-      renderDoc(layout, doc, index) # 25 + index * 140
+      self.centralWidget = QWidget()
+      self.setCentralWidget(self.centralWidget)
+  
+      self.gridLayout = QGridLayout(self.centralWidget)
 
-   button = QPushButton("Close") 
-   button.setToolTip('This is a QPushButton widget. Clicking it will close the program!') 
-   button.clicked.connect(app.quit)
+      gameDetail = fetchGameDetail()
+      docs = json.loads(gameDetail['GameADetailJson'])
+      for index, doc in enumerate(docs):
+         renderDoc(self.gridLayout, doc, index)
+      
+      button = QPushButton("Close") 
+      button.setToolTip('This is a QPushButton widget. Clicking it will close the program!') 
+      button.clicked.connect(app.quit)
 
-   horLayout = QHBoxLayout()
-   horLayout.addStretch(1)
-   horLayout.addWidget(button)
-   horLayout.addStretch(1)
-   layout.addLayout(horLayout, 2, 0)
+      horLayout = QHBoxLayout()
+      horLayout.addStretch(1)
+      horLayout.addWidget(button)
+      horLayout.addStretch(1)
+      self.gridLayout.addLayout(horLayout, 2, 0)
 
-   widget.setGeometry(0, 0, 480, 280)
-   widget.setWindowTitle("CPBL Game Info.")
-   widget.show()
-
-   sys.exit(app.exec_())
+      self.centralWidget.setLayout(self.gridLayout)
 
 if __name__ == '__main__':
-   window()
+   app = QApplication(sys.argv)
+   window = Window()
+   window.show()
+   sys.exit(app.exec_())
