@@ -22,6 +22,7 @@ from PyQt5.QtCore import QObject, QRunnable, Qt, QThread, pyqtSignal
 
 requestVerificationToken = None
 my_labels = []
+keep_running = True
 
 def imageByTeamCode(teamCode):
    if teamCode == 'ACN011':
@@ -43,7 +44,8 @@ class Worker(QObject):
 
    def run(self):
       # """Long-running task."""
-      while True:
+      global keep_running
+      while keep_running:
          try:
             docs = fetchGameDetail()
             self.progress.emit(docs)
@@ -123,19 +125,20 @@ class Window(QMainWindow):
 
          self.gridLayout.addLayout(horLayout, index, 0)
       
-      reloadBtn = QPushButton("Start")
-      reloadBtn.setToolTip('Clicking it will start to fetch data!') 
-      reloadBtn.clicked.connect(self.runTask)
+      self.startBtn = QPushButton("Start")
+      self.startBtn.setToolTip('Clicking it will start to fetch data!') 
+      self.startBtn.clicked.connect(self.runTask)
 
-      closeBtn = QPushButton("Close") 
-      closeBtn.setToolTip('Clicking it will close the program!') 
-      closeBtn.clicked.connect(app.quit)
+      self.stopBtn = QPushButton("Stop")
+      self.stopBtn.setEnabled(False)
+      self.stopBtn.setToolTip('Clicking it will stop to fetch data!') 
+      self.stopBtn.clicked.connect(self.stopTask)
 
       horLayout = QHBoxLayout()
       horLayout.addStretch(1)
-      horLayout.addWidget(reloadBtn)
+      horLayout.addWidget(self.startBtn)
       horLayout.addStretch(1)
-      horLayout.addWidget(closeBtn)
+      horLayout.addWidget(self.stopBtn)
       horLayout.addStretch(1)
       self.gridLayout.addLayout(horLayout, 2, 0)
 
@@ -161,21 +164,36 @@ class Window(QMainWindow):
          self.homeTeamLbl_1.setPixmap(pixmap_1)
    
    def runTask(self):
+      # Create a QThread object
       self.thread = QThread()
+      # Create a worker object
       self.worker = Worker()
+      # Move worker to the thread
       self.worker.moveToThread(self.thread)
-
+      # Connect signals and slots
       self.thread.started.connect(self.worker.run)
       self.worker.finished.connect(self.thread.quit)
       self.worker.finished.connect(self.worker.deleteLater)
       self.thread.finished.connect(self.thread.deleteLater)
       self.worker.progress.connect(self.updateUi)
-
+      # Start the thread
       self.thread.start()
 
-      # self.thread.finished.connect(
-      #    lambda: 
-      # )
+      # Final resets
+      global keep_running
+      keep_running = True
+      self.startBtn.setEnabled(False)
+      self.stopBtn.setEnabled(True)
+      self.thread.finished.connect(
+         lambda: self.startBtn.setEnabled(True)
+      )
+      self.thread.finished.connect(
+         lambda: self.stopBtn.setEnabled(False)
+      )
+   
+   def stopTask(self):
+      global keep_running
+      keep_running = False
    
    def updateUi(self, docs):
       for index, doc in enumerate(docs):
